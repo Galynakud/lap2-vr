@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lab 2 AR — Launcher</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --c1: #00ffc8;
+        --c2: #b57bee;
+        --c3: #ff6b9d;
+        --c4: #ffa600;
+      }
+      body {
+        min-height: 100vh;
+        background: #000;
+        font-family: "Space Mono", monospace;
+        overflow-x: hidden;
+        cursor: crosshair;
+      }
+
+      #bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background:
+          radial-gradient(
+            ellipse at 15% 40%,
+            rgba(0, 255, 200, 0.07) 0%,
+            transparent 55%
+          ),
+          radial-gradient(
+            ellipse at 85% 60%,
+            rgba(181, 123, 238, 0.07) 0%,
+            transparent 55%
+          ),
+          #000;
+      }
+      #grid {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(0, 255, 200, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 200, 0.04) 1px, transparent 1px);
+        background-size: 60px 60px;
+      }
+      #scan {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+          to bottom,
+          transparent 0,
+          transparent 3px,
+          rgba(0, 255, 200, 0.018) 3px,
+          rgba(0, 255, 200, 0.018) 4px
+        );
+      }
+
+      .corner {
+        position: fixed;
+        width: 55px;
+        height: 55px;
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0;
+        animation: fadeIn 0.8s 0.3s forwards;
+      }
+      .corner::before,
+      .corner::after {
+        content: "";
+        position: absolute;
+        background: var(--c1);
+        box-shadow:
+          0 0 10px var(--c1),
+          0 0 22px rgba(0, 255, 200, 0.25);
+      }
+      .corner::before {
+        width: 100%;
+        height: 2px;
+      }
+      .corner::after {
+        width: 2px;
+        height: 100%;
+      }
+      .corner.tl {
+        top: 16px;
+        left: 16px;
+      }
+      .corner.tr {
+        top: 16px;
+        right: 16px;
+        transform: scaleX(-1);
+      }
+      .corner.bl {
+        bottom: 16px;
+        left: 16px;
+        transform: scaleY(-1);
+      }
+      .corner.br {
+        bottom: 16px;
+        right: 16px;
+        transform: scale(-1);
+      }
+
+      header {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: clamp(60px, 10vw, 90px) 24px 0;
+        opacity: 0;
+        animation: slideDown 0.9s 0.15s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      }
+      .badge {
+        font-size: 9px;
+        letter-spacing: 5px;
+        color: rgba(0, 255, 200, 0.45);
+        text-transform: uppercase;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .badge::before,
+      .badge::after {
+        content: "";
+        width: 40px;
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          rgba(0, 255, 200, 0.3)
+        );
+      }
+      .badge::after {
+        transform: scaleX(-1);
+      }
+      h1 {
+        font-family: "Orbitron", sans-serif;
+        font-weight: 900;
+        font-size: clamp(28px, 7vw, 64px);
+        letter-spacing: clamp(4px, 1.5vw, 12px);
+        color: transparent;
+        background: linear-gradient(
+          90deg,
+          var(--c1),
+          var(--c2),
+          var(--c3),
+          var(--c4),
+          var(--c1)
+        );
+        background-size: 300%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        animation: gradShift 6s linear infinite;
+        filter: drop-shadow(0 0 30px rgba(0, 255, 200, 0.4));
+        line-height: 1.1;
+        text-align: center;
+      }
+      header p {
+        margin-top: 14px;
+        font-size: clamp(9px, 1.5vw, 11px);
+        letter-spacing: 5px;
+        color: rgba(255, 255, 255, 0.25);
+        text-transform: uppercase;
+      }
+
+      .divider {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin: clamp(32px, 5vw, 48px) auto 0;
+        width: min(560px, 90vw);
+        opacity: 0;
+        animation: fadeIn 0.8s 0.6s forwards;
+      }
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          rgba(255, 255, 255, 0.08),
+          transparent
+        );
+      }
+      .divider span {
+        font-size: 8px;
+        letter-spacing: 4px;
+        color: rgba(255, 255, 255, 0.2);
+        text-transform: uppercase;
+      }
+
+      #cards {
+        position: relative;
+        z-index: 5;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(270px, 90vw), 1fr));
+        gap: 18px;
+        max-width: 980px;
+        margin: 32px auto clamp(60px, 10vw, 90px);
+        padding: 0 clamp(16px, 4vw, 40px);
+      }
+
+      .card {
+        position: relative;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 4px;
+        padding: 28px 26px 24px;
+        text-decoration: none;
+        display: block;
+        transition:
+          border-color 0.3s,
+          transform 0.3s,
+          box-shadow 0.3s;
+        opacity: 0;
+      }
+      .card:nth-child(1) {
+        animation: slideUp 0.8s 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      }
+      .card:nth-child(2) {
+        animation: slideUp 0.8s 0.65s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      }
+      .card:nth-child(3) {
+        animation: slideUp 0.8s 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      }
+      .card:nth-child(4) {
+        animation: slideUp 0.8s 0.95s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.4s;
+        background: radial-gradient(
+          ellipse at 50% 0%,
+          var(--cc) 0%,
+          transparent 70%
+        );
+        filter: blur(20px);
+      }
+      .card:hover {
+        transform: translateY(-4px);
+      }
+      .card:hover::before {
+        opacity: 0.12;
+      }
+      .card:hover {
+        border-color: var(--cc);
+        box-shadow:
+          0 8px 40px rgba(0, 0, 0, 0.5),
+          0 0 0 1px var(--cc);
+      }
+
+      .card-num {
+        font-family: "Orbitron", sans-serif;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 5px;
+        color: var(--cc);
+        text-transform: uppercase;
+        opacity: 0.7;
+      }
+      .card-title {
+        font-family: "Orbitron", sans-serif;
+        font-weight: 900;
+        font-size: clamp(15px, 2.5vw, 19px);
+        letter-spacing: 2px;
+        color: #fff;
+        margin: 10px 0 8px;
+        text-shadow: 0 0 20px var(--cc);
+      }
+      .card-sub {
+        font-size: 9px;
+        letter-spacing: 1.5px;
+        color: rgba(255, 255, 255, 0.3);
+        text-transform: uppercase;
+        line-height: 1.9;
+      }
+      .card-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 16px;
+      }
+      .tag {
+        font-size: 8px;
+        letter-spacing: 2px;
+        padding: 4px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        color: rgba(255, 255, 255, 0.35);
+        text-transform: uppercase;
+      }
+      .card-line {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--cc);
+        box-shadow:
+          0 0 12px var(--cc),
+          0 0 30px var(--cc);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      .card:hover .card-line {
+        transform: scaleX(1);
+      }
+      .card-arrow {
+        position: absolute;
+        right: 22px;
+        bottom: 22px;
+        font-size: 18px;
+        color: var(--cc);
+        opacity: 0.4;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+      }
+      .card:hover .card-arrow {
+        opacity: 1;
+        transform: translate(3px, -3px);
+      }
+
+      footer {
+        position: relative;
+        z-index: 5;
+        text-align: center;
+        padding-bottom: 32px;
+        font-size: 8px;
+        letter-spacing: 3px;
+        color: rgba(255, 255, 255, 0.12);
+        text-transform: uppercase;
+        opacity: 0;
+        animation: fadeIn 0.8s 1.5s forwards;
+      }
+
+      /* Page transition */
+      body.out {
+        opacity: 0;
+        transition: opacity 0.35s ease;
+      }
+
+      @keyframes fadeIn {
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(24px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes gradShift {
+        to {
+          background-position: -300% 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="bg"></div>
+    <div id="grid"></div>
+    <div id="scan"></div>
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+
+    <header>
+      <div class="badge">Lviv Polytechnic · 2026</div>
+      <h1>WebAR<br />Lab 2</h1>
+      <p>WebXR Device API · Three.js · Augmented Reality</p>
+    </header>
+
+    <div class="divider"><span>Оберіть завдання</span></div>
+
+    <div id="cards">
+      <a class="card" href="task1.html" style="--cc: #00ffc8">
+        <div class="card-num">Task · 01</div>
+        <div class="card-title">3D Objects</div>
+        <div class="card-sub">
+          DodecahedronGeometry<br />ExtrudeGeometry<br />TubeGeometry
+        </div>
+        <div class="card-tags">
+          <span class="tag">Animation</span><span class="tag">Materials</span
+          ><span class="tag">WebXR</span>
+        </div>
+        <div class="card-line"></div>
+        <div class="card-arrow">↗</div>
+      </a>
+      <a class="card" href="task2.html" style="--cc: #00c8ff">
+        <div class="card-num">Task · 02</div>
+        <div class="card-title">GLTF Model</div>
+        <div class="card-sub">
+          Transport Category<br />Auto-scale &amp; Center<br />Real-time
+          Animation
+        </div>
+        <div class="card-tags">
+          <span class="tag">GLTFLoader</span><span class="tag">Transport</span
+          ><span class="tag">AR</span>
+        </div>
+        <div class="card-line"></div>
+        <div class="card-arrow">↗</div>
+      </a>
+      <a class="card" href="task3.html" style="--cc: #b57bee">
+        <div class="card-num">Task · 03</div>
+        <div class="card-title">Hit Test</div>
+        <div class="card-sub">
+          OctahedronGeometry<br />Surface Detection<br />Tap to Place
+        </div>
+        <div class="card-tags">
+          <span class="tag">Hit Test</span><span class="tag">Reticle</span
+          ><span class="tag">Multi-place</span>
+        </div>
+        <div class="card-line"></div>
+        <div class="card-arrow">↗</div>
+      </a>
+      <a class="card" href="task4.html" style="--cc: #ffa600">
+        <div class="card-num">Task · 04</div>
+        <div class="card-title">GLTF Hit Test</div>
+        <div class="card-sub">
+          Food &amp; Drinks Model<br />Surface Placement<br />Tap to Place
+        </div>
+        <div class="card-tags">
+          <span class="tag">Hit Test</span><span class="tag">GLTFLoader</span
+          ><span class="tag">Food</span>
+        </div>
+        <div class="card-line"></div>
+        <div class="card-arrow">↗</div>
+      </a>
+    </div>
+
+    <footer>
+      Lviv Polytechnic National University · Dept. of Automated Control Systems
+      · 2026
+    </footer>
+
+    <script>
+      // Starfield
+      for (let i = 0; i < 140; i++) {
+        const d = document.createElement("div");
+        const sz = Math.random() * 2 + 0.4;
+        Object.assign(d.style, {
+          position: "fixed",
+          borderRadius: "50%",
+          background: "#fff",
+          pointerEvents: "none",
+          zIndex: "0",
+          width: sz + "px",
+          height: sz + "px",
+          top: Math.random() * 100 + "%",
+          left: Math.random() * 100 + "%",
+          opacity: 0.04 + Math.random() * 0.28,
+          animation: `fadeIn ${2 + Math.random() * 6}s ease-in-out infinite alternate`,
+          animationDelay: Math.random() * 6 + "s",
+        });
+        document.body.appendChild(d);
+      }
+      // Smooth transition out
+      document.querySelectorAll(".card").forEach((c) => {
+        c.addEventListener("click", (e) => {
+          e.preventDefault();
+          const href = c.getAttribute("href");
+          document.body.classList.add("out");
+          setTimeout(() => (location.href = href), 360);
+        });
+      });
+    </script>
+  </body>
+</html>
